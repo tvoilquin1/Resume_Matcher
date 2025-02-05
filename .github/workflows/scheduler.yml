@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "*/15 * * * *" # Run every 15 minutes
+    - cron: "0 0 * * 1" # Run every start of the week
 
 jobs:
   check-jobs:
@@ -29,7 +29,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           RESUME_URL: ${{ secrets.RESUME_URL }}
-          JOB_SOURCES: ${{ secrets.JOB_SOURCES }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           CHECK_INTERVAL_MINUTES: 15
         run: |
           python -m src.scheduler
