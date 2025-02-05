@@ -1,5 +1,14 @@
 from firecrawl import FirecrawlApp
 from .models import Job, JobListings
+import streamlit as st
+
+
+@st.cache_data(show_spinner=False)
+def _cached_parse_resume(pdf_link: str) -> str:
+    """Cached version of resume parsing"""
+    app = FirecrawlApp()
+    response = app.scrape_url(url=pdf_link)
+    return response["markdown"]
 
 
 class JobScraper:
@@ -8,8 +17,7 @@ class JobScraper:
 
     async def parse_resume(self, pdf_link: str) -> str:
         """Parse a resume from a PDF link."""
-        response = self.app.scrape_url(url=pdf_link)
-        return response["markdown"]
+        return _cached_parse_resume(pdf_link)
 
     async def scrape_job_postings(self, source_urls: list[str]) -> list[Job]:
         """Scrape job postings from source URLs."""
