@@ -23,7 +23,7 @@ class JobMatcher:
             [
                 (
                     "system",
-                    "You are an expert job interviewer with decades of experience. Analyze the resume and job posting to determine if the candidate is a good fit. Consider that candidates might be good fits even without meeting all requirements.",
+                    "You are an expert job interviewer with decades of experience. Analyze the resume and job posting to determine if the candidate is a good fit. Be critical in your assessment and accept only applicants that meet at least 75% of the requirements.",
                 ),
                 (
                     "human",

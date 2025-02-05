@@ -3,8 +3,20 @@ import asyncio
 from dotenv import load_dotenv
 from src.scraper import JobScraper
 from src.matcher import JobMatcher
+from src.discord import DiscordNotifier
 
 load_dotenv()
+
+
+async def process_job(scraper, matcher, notifier, job, resume_content):
+    """Process a single job posting"""
+    job_content = await scraper.scrape_job_content(job.url)
+    result = await matcher.evaluate_match(resume_content, job_content)
+
+    if result["is_match"]:
+        await notifier.send_match(job, result["reason"])
+
+    return job, result
 
 
 async def main():
@@ -23,6 +35,7 @@ async def main():
 
     scraper = JobScraper()
     matcher = JobMatcher()
+    notifier = DiscordNotifier()
 
     # Resume PDF URL input
     resume_url = st.text_input(
@@ -37,26 +50,54 @@ async def main():
     )
 
     if st.button("Analyze") and resume_url and job_sources:
-        with st.spinner("Analyzing..."):
-            # Process resume
+        with st.spinner("Parsing resume..."):
             resume_content = await scraper.parse_resume(resume_url)
 
-            # Process job postings
+        with st.spinner("Scraping job postings..."):
             job_sources_list = [
                 url.strip() for url in job_sources.split("\n") if url.strip()
             ]
             jobs = await scraper.scrape_job_postings(job_sources_list)
 
-            # Analyze each job posting
-            for job in jobs:
-                job_content = await scraper.scrape_job_content(job.url)
-                result = await matcher.evaluate_match(resume_content, job_content)
+        if not jobs:
+            st.warning("No jobs found in the provided URLs.")
+            return
 
-                st.subheader(f"Job: {job.title}")
-                st.write(f"URL: {job.url}")
-                st.write(f"Match: {'✅' if result['is_match'] else '❌'}")
-                st.write(f"Reason: {result['reason']}")
-                st.divider()
+        # Create progress bar
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+
+        # Process jobs in parallel
+        tasks = []
+        for job in jobs:
+            task = process_job(scraper, matcher, notifier, job, resume_content)
+            tasks.append(task)
+
+        # Process results as they complete
+        total_jobs = len(tasks)
+        completed = 0
+
+        for coro in asyncio.as_completed(tasks):
+            job, result = await coro
+            completed += 1
+
+            # Update progress
+            progress = completed / total_jobs
+            progress_bar.progress(progress)
+            status_text.text(f"Processing jobs... {completed}/{total_jobs}")
+
+            # Display result
+            st.subheader(f"Job: {job.title}")
+            st.write(f"URL: {job.url}")
+            st.write(f"Match: {'✅' if result['is_match'] else '❌'}")
+            st.write(f"Reason: {result['reason']}")
+            st.divider()
+
+        # Clean up progress indicators
+        progress_bar.empty()
+        status_text.empty()
+
+        st.success(f"Analysis complete! Processed {total_jobs} jobs.")
 
 
 if __name__ == "__main__":
