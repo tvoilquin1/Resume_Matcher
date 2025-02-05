@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from src.scraper import JobScraper
 from src.matcher import JobMatcher
 from src.discord import DiscordNotifier
+from src.database import Database
 
 load_dotenv()
 
@@ -22,20 +23,46 @@ async def process_job(scraper, matcher, notifier, job, resume_content):
 async def main():
     """Main function to run the resume parser application."""
     st.title("Resume Parser and Job Matcher")
+
+    # Initialize services
+    scraper = JobScraper()
+    matcher = JobMatcher()
+    notifier = DiscordNotifier()
+    db = Database()
+
+    # Sidebar for managing job sources
+    with st.sidebar:
+        st.header("Manage Job Sources")
+
+        # Add new job source
+        new_source = st.text_input("Add Job Source URL")
+
+        if st.button("Add Source"):
+            db.save_job_source(new_source)
+            st.success("Job source added!")
+
+        # List and delete existing sources
+        st.subheader("Current Sources")
+        for source in db.get_job_sources():
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.text(source.url)
+            with col2:
+                if st.button("Delete", key=source.url):
+                    db.delete_job_source(source.url)
+                    st.rerun()
+
+    # Main content
     st.markdown(
         """
     This app helps you find matching jobs by:
     - Analyzing your resume from a PDF URL
-    - Scraping job postings from provided job board URLs 
+    - Scraping job postings from your saved job sources 
     - Using AI to evaluate if you're a good fit for each position
     
-    Simply paste your resume URL and job board URLs below to get started!
+    Simply paste your resume URL below to get started!
     """
     )
-
-    scraper = JobScraper()
-    matcher = JobMatcher()
-    notifier = DiscordNotifier()
 
     # Resume PDF URL input
     resume_url = st.text_input(
@@ -43,38 +70,31 @@ async def main():
         placeholder="https://www.website.com/resume.pdf",
     )
 
-    # Job board URL input
-    job_sources = st.text_area(
-        "**Enter job board URLs (one per line)**",
-        placeholder="https://www.company.com/jobs\nhttps://www.company.com/careers",
-    )
-
-    if st.button("Analyze") and resume_url and job_sources:
+    if st.button("Analyze") and resume_url:
         with st.spinner("Parsing resume..."):
             resume_content = await scraper.parse_resume(resume_url)
 
+        # Get job sources from database
+        sources = db.get_job_sources()
+        if not sources:
+            st.warning("No job sources configured. Add some in the sidebar!")
+            return
+
         with st.spinner("Scraping job postings..."):
-            job_sources_list = [
-                url.strip() for url in job_sources.split("\n") if url.strip()
-            ]
-            jobs = await scraper.scrape_job_postings(job_sources_list)
+            jobs = await scraper.scrape_job_postings([s.url for s in sources])
 
         if not jobs:
-            st.warning("No jobs found in the provided URLs.")
+            st.warning("No jobs found in the configured sources.")
             return
 
         with st.spinner(f"Analyzing {len(jobs)} jobs..."):
-            # Process jobs in parallel
             tasks = []
             for job in jobs:
                 task = process_job(scraper, matcher, notifier, job, resume_content)
                 tasks.append(task)
 
-            # Process results as they complete
             for coro in asyncio.as_completed(tasks):
                 job, result = await coro
-
-                # Display result
                 st.subheader(f"Job: {job.title}")
                 st.write(f"URL: {job.url}")
                 st.write(f"Match: {'✅' if result['is_match'] else '❌'}")
