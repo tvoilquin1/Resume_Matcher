@@ -63,41 +63,25 @@ async def main():
             st.warning("No jobs found in the provided URLs.")
             return
 
-        # Create progress bar
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+        with st.spinner(f"Analyzing {len(jobs)} jobs..."):
+            # Process jobs in parallel
+            tasks = []
+            for job in jobs:
+                task = process_job(scraper, matcher, notifier, job, resume_content)
+                tasks.append(task)
 
-        # Process jobs in parallel
-        tasks = []
-        for job in jobs:
-            task = process_job(scraper, matcher, notifier, job, resume_content)
-            tasks.append(task)
+            # Process results as they complete
+            for coro in asyncio.as_completed(tasks):
+                job, result = await coro
 
-        # Process results as they complete
-        total_jobs = len(tasks)
-        completed = 0
+                # Display result
+                st.subheader(f"Job: {job.title}")
+                st.write(f"URL: {job.url}")
+                st.write(f"Match: {'✅' if result['is_match'] else '❌'}")
+                st.write(f"Reason: {result['reason']}")
+                st.divider()
 
-        for coro in asyncio.as_completed(tasks):
-            job, result = await coro
-            completed += 1
-
-            # Update progress
-            progress = completed / total_jobs
-            progress_bar.progress(progress)
-            status_text.text(f"Processing jobs... {completed}/{total_jobs}")
-
-            # Display result
-            st.subheader(f"Job: {job.title}")
-            st.write(f"URL: {job.url}")
-            st.write(f"Match: {'✅' if result['is_match'] else '❌'}")
-            st.write(f"Reason: {result['reason']}")
-            st.divider()
-
-        # Clean up progress indicators
-        progress_bar.empty()
-        status_text.empty()
-
-        st.success(f"Analysis complete! Processed {total_jobs} jobs.")
+        st.success(f"Analysis complete! Processed {len(jobs)} jobs.")
 
 
 if __name__ == "__main__":
