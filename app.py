@@ -10,15 +10,31 @@ load_dotenv()
 async def main():
     """Main function to run the resume parser application."""
     st.title("Resume Parser and Job Matcher")
+    st.markdown(
+        """
+    This app helps you find matching jobs by:
+    - Analyzing your resume from a PDF URL
+    - Scraping job postings from provided job board URLs 
+    - Using AI to evaluate if you're a good fit for each position
+    
+    Simply paste your resume URL and job board URLs below to get started!
+    """
+    )
 
     scraper = JobScraper()
     matcher = JobMatcher()
 
     # Resume PDF URL input
-    resume_url = st.text_input("Enter Resume PDF URL")
+    resume_url = st.text_input(
+        "**Enter Resume PDF URL**",
+        placeholder="https://www.website.com/resume.pdf",
+    )
 
     # Job board URL input
-    job_sources = st.text_area("Enter job board URLs (one per line)")
+    job_sources = st.text_area(
+        "**Enter job board URLs (one per line)**",
+        placeholder="https://www.company.com/jobs\nhttps://www.company.com/careers",
+    )
 
     if st.button("Analyze") and resume_url and job_sources:
         with st.spinner("Analyzing..."):
