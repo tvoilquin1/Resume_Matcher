@@ -6,7 +6,7 @@ from typing import Dict
 
 class JobMatcher:
     def __init__(self):
-        self.llm = ChatAnthropic(model="claude-3-opus-20240229", temperature=0)
+        self.llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
 
         self.response_schemas = [
             ResponseSchema(

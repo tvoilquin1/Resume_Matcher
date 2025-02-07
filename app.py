@@ -35,7 +35,9 @@ async def main():
         st.header("Manage Job Sources")
 
         # Add new job source
-        new_source = st.text_input("Add Job Source URL")
+        new_source = st.text_input(
+            "Add Job Source URL", placeholder="https://www.company.com/jobs"
+        )
 
         if st.button("Add Source"):
             db.save_job_source(new_source)
